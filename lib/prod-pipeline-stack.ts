@@ -47,20 +47,11 @@ export class ProdPipelineStack extends Stack {
 
     const deployRole = new iam.Role(this, `${id}-deploy-role`, {
       assumedBy: new iam.ServicePrincipal('codebuild.amazonaws.com'),
-      managedPolicies: [
-        { managedPolicyArn: 'arn:aws:iam::aws:policy/PowerUserAccess' }
-      ],
-      inlinePolicies: {
-        [`${id}-inline-policies`]: new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              actions: ['iam:*'],
-              resources: ['*']
-            })
-          ]
-        })
-      }
     })
+    deployRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['s3:*'],
+      resources: ['*'],
+    }));
 
     const deployDefinition = new codebuild.PipelineProject(
       this,
@@ -81,13 +72,15 @@ export class ProdPipelineStack extends Stack {
     })
 
     const key = new kms.Key(this, `${id}-artifact-key`, {
-      enableKeyRotation: true
+      enableKeyRotation: true,
+      alias: `cross-cicd-artifact-key`
     })
 
     const artifactBucket = new s3.Bucket(this, `${id}-artifact-bucket`, {
       removalPolicy: RemovalPolicy.DESTROY,
       encryption: s3.BucketEncryption.KMS,
-      encryptionKey: key
+      encryptionKey: key,
+      bucketName: `cross-cicd-artifact-bucket-${props.account}`
     })
 
     artifactBucket.grantReadWrite(new iam.ArnPrincipal(crossAccessRole.roleArn))
@@ -105,20 +98,6 @@ export class ProdPipelineStack extends Stack {
         }
       ]
     })
-
-    pipeline.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['s3:*', 'codecommit:*', 'kms:*'],
-        resources: [crossAccessRole.roleArn]
-      })
-    )
-
-    // new events.CfnEventBusPolicy(this, `${id}-eventbus-policy`, {
-    //   action: 'events:PutEvents',
-    //   eventBusName: 'default',
-    //   principal: props.devAccount,
-    //   statementId: `AcceptEventsFrom_${props.devAccount}`
-    // })
 
   }
 }
