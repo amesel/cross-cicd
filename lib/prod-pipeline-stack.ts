@@ -7,7 +7,6 @@ import * as codepipeline from 'aws-cdk-lib/aws-codepipeline';
 import * as codepipeline_actions from 'aws-cdk-lib/aws-codepipeline-actions';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as events from 'aws-cdk-lib/aws-events';
 
 interface ProdPipelineStackProps extends StackProps {
   account: string,
@@ -15,6 +14,7 @@ interface ProdPipelineStackProps extends StackProps {
   repositoryArn: string,
   branch: string,
   crossAccessRoleArn: string,
+  deployBucketName: string,
   devAccount: string,
 }
 
@@ -37,7 +37,7 @@ export class ProdPipelineStack extends Stack {
     )
 
     const sourceAction = new codepipeline_actions.CodeCommitSourceAction({
-      actionName: `codecommit`,
+      actionName: 'codecommit',
       repository: repository,
       output: sourceOutput,
       branch: props.branch,
@@ -49,8 +49,12 @@ export class ProdPipelineStack extends Stack {
       assumedBy: new iam.ServicePrincipal('codebuild.amazonaws.com'),
     })
     deployRole.addToPolicy(new iam.PolicyStatement({
-      actions: ['s3:*'],
-      resources: ['*'],
+      actions: ['s3:ListBucket'],
+      resources: [`arn:aws:s3:::${props.deployBucketName}`],
+    }));
+    deployRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['s3:PutObject'],
+      resources: [`arn:aws:s3:::${props.deployBucketName}/*`],
     }));
 
     const deployDefinition = new codebuild.PipelineProject(
@@ -66,7 +70,7 @@ export class ProdPipelineStack extends Stack {
     )
 
     const deployAction = new codepipeline_actions.CodeBuildAction({
-      actionName: `deploy`,
+      actionName: 'deploy',
       input: sourceOutput,
       project: deployDefinition
     })
