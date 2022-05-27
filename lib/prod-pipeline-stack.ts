@@ -7,6 +7,7 @@ import * as codepipeline from 'aws-cdk-lib/aws-codepipeline';
 import * as codepipeline_actions from 'aws-cdk-lib/aws-codepipeline-actions';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import { NagSuppressions } from 'cdk-nag';
 
 interface ProdPipelineStackProps extends StackProps {
   account: string,
@@ -82,9 +83,11 @@ export class ProdPipelineStack extends Stack {
 
     const artifactBucket = new s3.Bucket(this, `${id}-artifact-bucket`, {
       removalPolicy: RemovalPolicy.DESTROY,
+      bucketKeyEnabled: true,
       encryption: s3.BucketEncryption.KMS,
       encryptionKey: key,
-      bucketName: `cross-cicd-artifact-bucket-${props.account}`
+      bucketName: `cross-cicd-artifact-bucket-${props.account}`,
+      enforceSSL: true,
     })
 
     artifactBucket.grantReadWrite(new iam.ArnPrincipal(crossAccessRole.roleArn))
@@ -102,6 +105,14 @@ export class ProdPipelineStack extends Stack {
         }
       ]
     })
+
+    NagSuppressions.addResourceSuppressions(artifactBucket, [
+      { id: "AwsSolutions-S1", reason: "Suppress all AwsSolutions-S1 findings" }
+    ])
+
+    NagSuppressions.addResourceSuppressions(artifactBucket, [
+      { id: "AwsSolutions-S2", reason: "Suppress all AwsSolutions-S2 findings" }
+    ])
 
   }
 }
