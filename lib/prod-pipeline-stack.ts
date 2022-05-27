@@ -83,12 +83,20 @@ export class ProdPipelineStack extends Stack {
 
     const artifactBucket = new s3.Bucket(this, `${id}-artifact-bucket`, {
       removalPolicy: RemovalPolicy.DESTROY,
-      bucketKeyEnabled: true,
+      // bucketKeyEnabled: true,
       encryption: s3.BucketEncryption.KMS,
       encryptionKey: key,
       bucketName: `cross-cicd-artifact-bucket-${props.account}`,
       enforceSSL: true,
     })
+    const policyStatement = new iam.PolicyStatement({
+      effect: iam.Effect.DENY,
+      actions: ['s3:PutObject'],
+      resources: [`${artifactBucket.bucketArn}/*`],
+      principals: [new iam.AnyPrincipal()],
+    })
+    policyStatement.addCondition('StringNotEquals', { 's3:x-amz-server-side-encryption': 'aws:kms' });
+    artifactBucket.addToResourcePolicy(policyStatement);
 
     artifactBucket.grantReadWrite(new iam.ArnPrincipal(crossAccessRole.roleArn))
 
