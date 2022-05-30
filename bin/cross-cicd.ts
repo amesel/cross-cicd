@@ -11,7 +11,7 @@ import { NagSuppressions } from 'cdk-nag';
 
 const app = new cdk.App();
 
-new DevPipelineStack(app, 'DevPipelineStack', {
+const dev = new DevPipelineStack(app, 'DevPipelineStack', {
   env: {
     account: devProperties.account,
     region: devProperties.region,
@@ -31,6 +31,10 @@ const prod = new ProdPipelineStack(app, 'ProdPipelineStack', {
 });
 
 Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }))
+
+NagSuppressions.addStackSuppressions(dev, [
+  { id: 'AwsSolutions-IAM5', reason: 'Suppress all AwsSolutions-IAM5 findings' },
+]);
 
 NagSuppressions.addStackSuppressions(prod, [
   { id: 'AwsSolutions-IAM5', reason: 'Suppress all AwsSolutions-IAM5 findings' },
