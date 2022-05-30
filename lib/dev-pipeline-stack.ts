@@ -94,6 +94,12 @@ export class DevPipelineStack extends Stack {
       roleName: props.crossAccountRoleName,
       assumedBy: new iam.AccountPrincipal(props.prodAccount)
     })
+    crossAccessRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['codecommit:*', 's3:*', 'kms:*'],
+        resources: ['*']
+      })
+    )
 
     repository.onStateChange(`${id}-state-change-event`, {
       target: new targets.EventBus(

@@ -54,7 +54,7 @@ export class ProdPipelineStack extends Stack {
       resources: [`arn:aws:s3:::${props.deployBucketName}`],
     }));
     deployRole.addToPolicy(new iam.PolicyStatement({
-      actions: ['s3:PutObject'],
+      actions: ['s3:PutObject', 's3:DeleteObject'],
       resources: [`arn:aws:s3:::${props.deployBucketName}/*`],
     }));
 
@@ -66,6 +66,11 @@ export class ProdPipelineStack extends Stack {
         role: deployRole,
         environment: {
           buildImage: codebuild.LinuxBuildImage.STANDARD_5_0,
+          environmentVariables: {
+            buildenv: {
+              value: 'prod'
+            }
+          }
         }
       }
     )
