@@ -1,11 +1,13 @@
 # アカウントをまたいだCodePipelineのサンプル
-本番アカウントのCodePipelineを使用して、開発アカウント上にあるCodeCommitリポジトリからソースコードを取得し、本番アカウントのS3バケットにデプロイするCDKのサンプル。
+本番アカウントのCodePipelineを使用して、開発アカウント上にあるCodeCommitリポジトリからソースコードを取得し、本番アカウントのS3バケットにデプロイするCDKのサンプル
 
-## 前提条件
-- 開発アカウントのCodeCommitリポジトリ(cross-cicd-app)は予め作成されている。
-- 本番アカウントのデプロイ先のS3バケット(cross-cicd-app-222222222222)は予め作成されている。
+# 構築手順
 
-## 設定
+## 1. 準備
+- 開発アカウントのCodeCommitリポジトリ(cross-cicd-app)は予め作成されている
+- 本番アカウントのデプロイ先のS3バケット(cross-cicd-app-222222222222)は予め作成されている
+
+## 2.　設定ファイルの変更
 
 ### 開発アカウント
 #### /env/dev.ts
@@ -45,16 +47,45 @@ export const config = {
 |  crossAccessRoleArn  |  CodePipelineから使用する開発アカウントのIAMロールARN  |
 |  deployBucketName  |  デプロイ先のS3バケット  |
 
-## 構成
 
-### 1. 開発アカウント側のパイプライン
-#### lib/dev-pipeline-stack.ts
+## credentialsの作成
+`~/.aws/credentials`に開発アカウント、本番アカウントそれぞれの認証情報を用意する。
+```
+[dev]
+aws_access_key_id = AKIA****
+aws_secret_access_key = ********
+[prod]
+aws_access_key_id = AKIA****
+aws_secret_access_key = ********
+```
+
+CDK、CloudFormation、それぞれのリソースの作成、削除ができる権限が付与されている必要がある
+
+
+## CDKの実行
+
+```
+dev環境
+$ cdk bootstrap aws://111111111111/ap-northeast-1 --profile prod # 初回だけ
+$ cdk deploy DevPipelineStack --profile dev
+
+prod環境
+$ cdk bootstrap aws://222222222222/ap-northeast-1 --profile prod # 初回だけ
+$ cdk deploy ProdPipelineStack --profile prod
+```
+
+bootstrapを実行するのは、それぞれの環境で初回だけ
+
+# 構成
+
+## 1. 開発アカウント側のパイプライン
+### lib/dev-pipeline-stack.ts
 開発アカウントのCodeCommitのdevelopブランチにマージされると、CloudWatch Eventにより、自動で開発アカウント内のCodePipelineが起動され、開発アカウントのデプロイ先のS3バケット(cross-cicd-app-111111111111)にデプロイされる。
 
 開発側のパイプラインを構築するとともに、本番アカウントのパイプラインで使用されるIAMロールの作成も行っている。
 
-### 2. 本番アカウント側のパイプライン
-#### lib/prod-pipeline-stack.ts
+## 2. 本番アカウント側のパイプライン
+### lib/prod-pipeline-stack.ts
 
 開発アカウントのCodeCommitのmainブランチにマージする。CloudWatch Eventの設定を入れていないので、自動で本番アカウント側のCodePipelineは起動されない。
 本番アカウントのデプロイ用IAMユーザーでAWSコンソールにログインし、CodePipeline画面で該当のパイプラインを選択し、`変更をリリースする`ボタンを押しデプロイを開始する。
@@ -72,7 +103,7 @@ export const config = {
 CodeBuildの環境変数`buildenv`に、`prod`を設定している。
 `buildspec.yml`内ではS3バケット`cross-cicd-app-222222222222`に`s3 sync`コマンドでファイルをデプロイしている。
 
-#### buildspec.ymlのサンプル
+### buildspec.ymlのサンプル
 ```
 version: 0.2
 phases:
